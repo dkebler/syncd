@@ -6,7 +6,7 @@
 
 # Find config file
 
-CONF_FILE=syncd.conf
+CONF_FILE="$1.conf"
 # TODO read config files from a directory and start a daemon for each instead of in a directory above.
 
 while [ ! -e $CONF_FILE ]; do
@@ -37,7 +37,7 @@ COMMAND="rsync $RSYNC_OPTIONS --exclude=$RSYNC_EXCLUDE $WATCH_DIR/ $TARGET"
 # echo $COMMAND
 
 
-case $1 in
+case $2 in
     start)
       if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
         echo "$DAEMON_NAME is already running."
