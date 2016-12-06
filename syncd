@@ -7,6 +7,7 @@
 # Find config file
 
 CONF_FILE=syncd.conf
+# TODO read config files from a directory and start a daemon for each instead of in a directory above.
 
 while [ ! -e $CONF_FILE ]; do
   if [ $PWD = "/" ]; then
@@ -23,9 +24,18 @@ DAEMON_NAME=syncd
 LINK=`readlink -f $0`
 SCRIPT_DIR=`dirname $LINK`
 
+# source the config file here
 . $CONF_FILE
 
-COMMAND="rsync $RSYNC_OPTIONS --exclude=$RSYNC_EXCLUDE --delete $WATCH_DIR/ $SSH_USER@$SSH_HOST:$REMOTE_TARGET_DIR"
+if [ -z "$SSH_HOST" ]; then TARGET=$TARGET_DIR; else TARGET=$SSH_USER@$SSH_HOST:$TARGET_DIR; fi
+
+#echo target is: $TARGET
+
+# COMMAND="rsync $RSYNC_OPTIONS --exclude=$RSYNC_EXCLUDE --delete $WATCH_DIR/ $SSH_USER@$SSH_HOST:$REMOTE_TARGET_DIR"
+COMMAND="rsync $RSYNC_OPTIONS --exclude=$RSYNC_EXCLUDE $WATCH_DIR/ $TARGET"
+
+# echo $COMMAND
+
 
 case $1 in
     start)
@@ -70,7 +80,11 @@ case $1 in
     ;;
 
     run)
-      $COMMAND && echo Done.
+      echo $COMMAND
+	read -p "Ok to run this command? [yn]" ans
+	if [ $ans = y ] ; then
+	      $COMMAND && echo Done
+	fi
     ;;
 
     log)
