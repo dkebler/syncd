@@ -67,8 +67,8 @@ case $2 in
       rm $PIDFILE
     ;;
     restart)
-      $SCRIPT stop
-      $SCRIPT start
+      $SCRIPT $1 stop
+      $SCRIPT $1 start
     ;;
 
     status)
