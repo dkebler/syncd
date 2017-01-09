@@ -1,0 +1,32 @@
+# Syncd config see https://github.com/drunomics/syncd
+# Configuration File for AllData Mirror
+#
+# Variables:
+# - SYNCD_CONFIG_DIR: The directory in which the used syncd.conf is located.
+# - SCRIPT_DIR: The directory the syncd script has been installed to.
+
+# The directory being watched & synced.
+# testing rsync
+#WATCH_DIR=/mnt/AllData/test
+WATCH_DIR=/mnt/AllData
+
+# Watch-related options
+WATCH_EXCLUDE='(\.git|___jb_)'
+# Whether to enable verbosity. If enabled, change events are output.
+WATCH_VERBOSE=0
+
+# SSH connection settings
+#SSH_USER=vagrant
+#SSH_HOST=hostname.local
+
+# Sync options
+#for testing
+#TARGET_DIR="/media/david/AllDataMirror/test/"
+TARGET_DIR="/media/david/AllDataMirror/"
+RSYNC_EXCLUDE='--exclude-from /home/david/.config/exclude.list --exclude-from /home/david/.config/media-exclude.list'
+# a for archive(permissions etc) H to preserve any hardlinks
+RSYNC_OPTIONS="-aH -x -v --delete --delete-during --delete-excluded"
+
+# Syncd files
+LOGFILE=".syncd.log"
+PIDFILE=".alldata-syncd.pid"

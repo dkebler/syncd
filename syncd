@@ -5,94 +5,131 @@
 #------------------------------------------------------------
 
 # Find config file
+CMD="$2"
+if [[ "$1" =~ ^(start|stop|restart|status|run|log)$ ]]; then
+  CONF_FILE="syncd"
+  CMD="$1"
+else
+  CONF_FILE="$1"
+fi
 
-CONF_FILE="$1.conf"
-# TODO read config files from a directory and start a daemon for each instead of in a directory above.
+echo conf file: $CONF_FILE  command: $CMD
 
-while [ ! -e $CONF_FILE ]; do
-  if [ $PWD = "/" ]; then
-    echo "Unable to find syncd configuration file \"$CONF_FILE\"."
-    exit 1
-  else
-    cd ..
-  fi
-done
 
 SYNCD_CONFIG_DIR=$PWD
 SCRIPT=`readlink -f $0`
 DAEMON_NAME=syncd
 LINK=`readlink -f $0`
 SCRIPT_DIR=`dirname $LINK`
+#echo syncd directory $LINK dir $SCRIPT_DIR
+
+CONF_PATH=$SCRIPT_DIR/jobs/$CONF_FILE.conf
+echo conf path before  $CONF_PATH
+
+# look in jobs directory of syncd folder or in syncd folder within directory being synced
+if [ ! -e $CONF_PATH ]; then
+  if [ ! -e syncd/$CONF_FILE.conf ]; then
+    if [ ! -e $CONF_FILE.conf ]; then
+      echo "Unable to find syncd configuration file \"$CONF_FILE\"."
+      exit 1
+    fi
+    echo match in syncd folder
+    CONF_PATH=$PWD/$CONF_FILE.conf
+  else
+    echo match up one folder
+    CONF_PATH=$PWD/syncd/$CONF_FILE.conf
+  fi
+fi
 
 # source the config file here
-. $CONF_FILE
+echo config file path after $CONF_PATH
+
+. $CONF_PATH
+
+if [ -z "$WATCH_DIR" ]; then WATCH_DIR=$(dirname `dirname $CONF_PATH`);fi
+echo watching $WATCH_DIR
 
 if [ -z "$SSH_HOST" ]; then TARGET=$TARGET_DIR; else TARGET=$SSH_USER@$SSH_HOST:$TARGET_DIR; fi
 
 #echo target is: $TARGET
+# RSYNC_EXCLUDE in conf file to be a string of space delmited files/folders and then build up exclude string for command
+# EXCLUDE_STR=""
+# for i in $(echo $IN | tr " " "\n")
+# do
+#   echo exclusion i
+# done
 
-# COMMAND="rsync $RSYNC_OPTIONS --exclude=$RSYNC_EXCLUDE --delete $WATCH_DIR/ $SSH_USER@$SSH_HOST:$REMOTE_TARGET_DIR"
-COMMAND="rsync $RSYNC_OPTIONS --exclude=$RSYNC_EXCLUDE $WATCH_DIR/ $TARGET"
+# COMMAND="rsync $RSYNC_OPTIONS --exclude=$RSYNC_EXCLUDE --exclude=SYNC_EXCLUDE --delete $WATCH_DIR/ $SSH_USER@$SSH_HOST:$REMOTE_TARGET_DIR"
+COMMAND="rsync $RSYNC_OPTIONS $RSYNC_EXCLUDE $WATCH_DIR/ $TARGET"
 
-# echo $COMMAND
+echo $COMMAND
 
+CONF_DIR=`dirname $CONF_PATH`
 
-case $2 in
-    start)
-      if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
-        echo "$DAEMON_NAME is already running."
-        exit 1;
-      fi
-      export WATCH_EXCLUDE
-      export WATCH_VERBOSE
-      export WATCH_DIR
-      $SCRIPT_DIR/watch.sh $COMMAND >> $LOGFILE &
-      echo "$!" > $PIDFILE
-      echo "Starting $DAEMON_NAME..."
-    ;;
+PIDFILE=$CONF_DIR/$CONF_FILE.pid
+LOGFILE=$CONF_DIR/$CONF_FILE.log
 
-    stop)
-      if [ ! -e ${PIDFILE} ] || ( ! ps -p `cat $PIDFILE` > /dev/null ); then
-        echo "$DAEMON_NAME is not running."
-        exit 1;
-      fi
+echo $PIDFILE
+echo $LOGFILE
 
-      echo "Stopping $DAEMON_NAME..."
-      PID=`cat $PIDFILE`
-      CHILD_PIDS=$(pgrep -P $PID);
-      kill $PID 2> /dev/null || echo Killing process failed, not running?
-      # Wait half a second and Kill child PIDs to be sure they are gone.
-      sleep 0.5
-      kill $CHILD_PIDS 2> /dev/null
-      rm $PIDFILE
-    ;;
-    restart)
-      $SCRIPT $1 stop
-      $SCRIPT $1 start
-    ;;
+# exit 1
 
-    status)
-      if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
-          echo "$DAEMON_NAME is running."
-      else
-          echo "$DAEMON_NAME is not running."
-      fi
-    ;;
+case $CMD in
+  start)
+    if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
+      echo "$DAEMON_NAME is already running."
+      exit 1;
+    fi
+    export WATCH_EXCLUDE
+    export WATCH_VERBOSE
+    export WATCH_DIR
+    $SCRIPT_DIR/watch.sh $COMMAND >> $LOGFILE &
+    echo "$!" > $PIDFILE
+    echo "Starting $DAEMON_NAME..."
+  ;;
 
-    run)
-      echo $COMMAND
-	read -p "Ok to run this command? [yn]" ans
-	if [ $ans = y ] ; then
-	      $COMMAND && echo Done
-	fi
-    ;;
+  stop)
+    if [ ! -e ${PIDFILE} ] || ( ! ps -p `cat $PIDFILE` > /dev/null ); then
+      echo "$DAEMON_NAME is not running."
+      exit 1;
+    fi
 
-    log)
-      tail -f $LOGFILE
-    ;;
+    echo "Stopping $DAEMON_NAME..."
+    PID=`cat $PIDFILE`
+    CHILD_PIDS=$(pgrep -P $PID);
+    kill $PID 2> /dev/null || echo Killing process failed, not running?
+    # Wait half a second and Kill child PIDs to be sure they are gone.
+    sleep 0.5
+    kill $CHILD_PIDS 2> /dev/null
+    rm $PIDFILE
+  ;;
+  restart)
+    $SCRIPT $1 stop
+    $SCRIPT $1 start
+  ;;
 
-    *)
-      echo "Usage: $0 {start|stop|restart|status|run|log}"
-      exit 3
-    ;;
+  status)
+    if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
+      echo "$DAEMON_NAME is running."
+    else
+      echo "$DAEMON_NAME is not running."
+    fi
+  ;;
+
+  run)
+    echo $COMMAND
+    read -p "Ok to run this command? [yn]" ans
+    if [ $ans = y ] ; then
+      $COMMAND && echo Done
+    fi
+  ;;
+
+  log)
+    tail -f $LOGFILE
+  ;;
+
+  *)
+    echo "Usage: $0 {start|stop|restart|status|run|log}"
+    exit 3
+  ;;
 esac

@@ -1,5 +1,7 @@
-syncd
+### syncd
 =====
+
+Need to edit this to reflect all my changes
 
 Syncd is a simple bash script that watches for file changes and rsyncs them to a remote machine. It uses inotify to watch for file system changes and syncs the whole directory to a remote machine using rsync. The script makes sure to aggregate change events during a running rsync, such that after the initial sync a subsequent sync can be triggered (and so on).
 
