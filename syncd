@@ -2,10 +2,13 @@
 #------------------------------------------------------------
 # initd script for running services without start-stop-daemon
 # (c) Wolfgang Ziegler, nuppla@zites.net, drunomics GmbH
+#  This forked version by David Kebler d@kebler.net, 2017
 #------------------------------------------------------------
 
-# Find config file
+
 CMD="$2"
+
+# if one of these then must be no conf passed to make it syncd.conf
 if [[ "$1" =~ ^(start|stop|restart|status|run|log)$ ]]; then
   CONF_FILE="syncd"
   CMD="$1"
@@ -21,10 +24,8 @@ SCRIPT=`readlink -f $0`
 DAEMON_NAME=syncd
 LINK=`readlink -f $0`
 SCRIPT_DIR=`dirname $LINK`
-#echo syncd directory $LINK dir $SCRIPT_DIR
 
 CONF_PATH=$SCRIPT_DIR/jobs/$CONF_FILE.conf
-echo conf path before  $CONF_PATH
 
 # look in jobs directory of syncd folder or in syncd folder within directory being synced
 if [ ! -e $CONF_PATH ]; then
@@ -33,45 +34,34 @@ if [ ! -e $CONF_PATH ]; then
       echo "Unable to find syncd configuration file \"$CONF_FILE\"."
       exit 1
     fi
-    echo match in syncd folder
     CONF_PATH=$PWD/$CONF_FILE.conf
   else
-    echo match up one folder
     CONF_PATH=$PWD/syncd/$CONF_FILE.conf
   fi
 fi
 
 # source the config file here
-echo config file path after $CONF_PATH
+echo loading config file: $CONF_PATH
 
 . $CONF_PATH
 
 if [ -z "$WATCH_DIR" ]; then WATCH_DIR=$(dirname `dirname $CONF_PATH`);fi
-echo watching $WATCH_DIR
+echo watching $WATCH_DIR for changes
 
 if [ -z "$SSH_HOST" ]; then TARGET=$TARGET_DIR; else TARGET=$SSH_USER@$SSH_HOST:$TARGET_DIR; fi
 
 #echo target is: $TARGET
-# RSYNC_EXCLUDE in conf file to be a string of space delmited files/folders and then build up exclude string for command
-# EXCLUDE_STR=""
-# for i in $(echo $IN | tr " " "\n")
-# do
-#   echo exclusion i
-# done
-
-# COMMAND="rsync $RSYNC_OPTIONS --exclude=$RSYNC_EXCLUDE --exclude=SYNC_EXCLUDE --delete $WATCH_DIR/ $SSH_USER@$SSH_HOST:$REMOTE_TARGET_DIR"
+# RSYNC_EXCLUDE in conf file be sure to add --exclude fileordir  for each one, can be multiple
 COMMAND="rsync $RSYNC_OPTIONS $RSYNC_EXCLUDE $WATCH_DIR/ $TARGET"
+# echo $COMMAND
 
-echo $COMMAND
-
+# pid files go in the same directory as .conf
 CONF_DIR=`dirname $CONF_PATH`
-
 PIDFILE=$CONF_DIR/$CONF_FILE.pid
 LOGFILE=$CONF_DIR/$CONF_FILE.log
+#echo $PIDFILE $LOGFILE
 
-echo $PIDFILE
-echo $LOGFILE
-
+# uncomment for debugging
 # exit 1
 
 case $CMD in
