@@ -27,6 +27,4 @@ RSYNC_EXCLUDE='--exclude-from /home/david/.config/exclude.list --exclude-from /h
 # a for archive(permissions etc) H to preserve any hardlinks
 RSYNC_OPTIONS="-aH -x -v --delete --delete-during --delete-excluded"
 
-# Syncd files
-LOGFILE=".syncd.log"
-PIDFILE=".alldata-syncd.pid"
+# log and pid files in directory of the same in jobs folder of syncd install

@@ -5,7 +5,6 @@
 #  This forked version by David Kebler d@kebler.net, 2017
 #------------------------------------------------------------
 
-
 CMD="$2"
 
 # if one of these then must be no conf passed to make it syncd.conf
@@ -16,7 +15,7 @@ else
   CONF_FILE="$1"
 fi
 
-echo conf file: $CONF_FILE  command: $CMD
+# echo conf file: $CONF_FILE  command: $CMD
 
 
 SYNCD_CONFIG_DIR=$PWD
@@ -27,39 +26,50 @@ SCRIPT_DIR=`dirname $LINK`
 
 CONF_PATH=$SCRIPT_DIR/jobs/$CONF_FILE.conf
 
-# look in jobs directory of syncd folder or in syncd folder within directory being synced
-if [ ! -e $CONF_PATH ]; then
-  if [ ! -e syncd/$CONF_FILE.conf ]; then
-    if [ ! -e $CONF_FILE.conf ]; then
-      echo "Unable to find syncd configuration file \"$CONF_FILE\"."
-      exit 1
+# look in 1. absolute path, 2. jobs directory (or subdirectory) of syncd folder, 3. pwd/syncd folder or 4. pwd
+if [ ! -e $CONF_FILE.conf ]; then
+  if [ ! -e $CONF_PATH ]; then
+    if [ ! -e syncd/$CONF_FILE.conf ]; then
+      if [ ! -e $CONF_FILE.conf ]; then
+        echo "ERROR - Unable to find syncd configuration file \"$CONF_FILE\"."
+        exit 1
+      fi
+      CONF_PATH=$PWD/$CONF_FILE.conf
+    else
+      CONF_PATH=$PWD/syncd/$CONF_FILE.conf
     fi
-    CONF_PATH=$PWD/$CONF_FILE.conf
-  else
-    CONF_PATH=$PWD/syncd/$CONF_FILE.conf
   fi
+else
+CONF_PATH=$CONF
 fi
 
+# reset filename in case of conf in a subirectory
+CONF_FILE=`basename $CONF_PATH`
+echo confile=$CONF_FILE
+
 # source the config file here
-echo loading config file: $CONF_PATH
+echo loading config
+echo $CONF_PATH
+
+# pid files go in the same directory as .conf
+CONF_DIR=`dirname $CONF_PATH`
+mkdir -p $CONF_DIR/LOG
+mkdir -p $CONF_DIR/PID
+PIDFILE="$SCRIPT_DIR/jobs/PID/${CONF_FILE%.*}.pid"
+LOGFILE=$SCRIPT_DIR/jobs/LOG/${CONF_FILE%.*}.log
+# echo pidfile = $PIDFILE
+# echo $LOGFILE
 
 . $CONF_PATH
 
 if [ -z "$WATCH_DIR" ]; then WATCH_DIR=$(dirname `dirname $CONF_PATH`);fi
-echo watching $WATCH_DIR for changes
 
 if [ -z "$SSH_HOST" ]; then TARGET=$TARGET_DIR; else TARGET=$SSH_USER@$SSH_HOST:$TARGET_DIR; fi
 
-#echo target is: $TARGET
+# echo including/excluding: $RSYNC_EXCLUDE
 # RSYNC_EXCLUDE in conf file be sure to add --exclude fileordir  for each one, can be multiple
 COMMAND="rsync $RSYNC_OPTIONS $RSYNC_EXCLUDE $WATCH_DIR/ $TARGET"
 # echo $COMMAND
-
-# pid files go in the same directory as .conf
-CONF_DIR=`dirname $CONF_PATH`
-PIDFILE=$CONF_DIR/$CONF_FILE.pid
-LOGFILE=$CONF_DIR/$CONF_FILE.log
-#echo $PIDFILE $LOGFILE
 
 # uncomment for debugging
 # exit 1
@@ -73,18 +83,23 @@ case $CMD in
     export WATCH_EXCLUDE
     export WATCH_VERBOSE
     export WATCH_DIR
+
+    # TODO add a process name based on config file name so it can be found later
+    # http://stackoverflow.com/questions/11130229/start-a-process-with-a-name
+
     $SCRIPT_DIR/watch.sh $COMMAND >> $LOGFILE &
     echo "$!" > $PIDFILE
-    echo "Starting $DAEMON_NAME..."
+    echo SYNCD $CONF_FILE
+    echo watching and syncing $WATCH_DIR to $TARGET
   ;;
 
   stop)
     if [ ! -e ${PIDFILE} ] || ( ! ps -p `cat $PIDFILE` > /dev/null ); then
-      echo "$DAEMON_NAME is not running."
+      echo "$DAEMON_NAME $CONF_FILE is not running."
       exit 1;
     fi
 
-    echo "Stopping $DAEMON_NAME..."
+    echo "Stopping $DAEMON_NAME...$CONF_FILE"
     PID=`cat $PIDFILE`
     CHILD_PIDS=$(pgrep -P $PID);
     kill $PID 2> /dev/null || echo Killing process failed, not running?
@@ -93,6 +108,7 @@ case $CMD in
     kill $CHILD_PIDS 2> /dev/null
     rm $PIDFILE
   ;;
+  #  TODO need to recode so this actually works
   restart)
     $SCRIPT $1 stop
     $SCRIPT $1 start
@@ -100,9 +116,10 @@ case $CMD in
 
   status)
     if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
-      echo "$DAEMON_NAME is running."
+      echo SYNCD $CONF_FILE
+      echo watching and syncing $WATCH_DIR to $TARGET
     else
-      echo "$DAEMON_NAME is not running."
+      echo "$DAEMON_NAME for $CONF_FILE is not running."
     fi
   ;;
 
