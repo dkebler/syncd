@@ -8,6 +8,10 @@
 CMD="$2"
 
 # if one of these then must be no conf passed to make it syncd.conf
+if [ ! $1 ]; then
+echo error! no command given
+exit 1
+fi
 if [[ "$1" =~ ^(start|stop|restart|status|run|log)$ ]]; then
   CONF_FILE="syncd"
   CMD="$1"
@@ -15,7 +19,7 @@ else
   CONF_FILE="$1"
 fi
 
-# echo conf file: $CONF_FILE  command: $CMD
+# echo conf file: $CONF_FILE.conf  command: $CMD
 
 
 SYNCD_CONFIG_DIR=$PWD
@@ -24,41 +28,47 @@ DAEMON_NAME=syncd
 LINK=`readlink -f $0`
 SCRIPT_DIR=`dirname $LINK`
 
+
 CONF_PATH=$SCRIPT_DIR/jobs/$CONF_FILE.conf
 
-# look in 1. absolute path, 2. jobs directory (or subdirectory) of syncd folder, 3. pwd/syncd folder or 4. pwd
-if [ ! -e $CONF_FILE.conf ]; then
+#echo "conf_path before search $CONF_PATH"
+#echo "current directory $PWD"
+# look in 1. jobs directory (or subdirectory) of syncd folder, 3. pwd/syncd folder or 4. pwd
   if [ ! -e $CONF_PATH ]; then
-    if [ ! -e syncd/$CONF_FILE.conf ]; then
-      if [ ! -e $CONF_FILE.conf ]; then
-        echo "ERROR - Unable to find syncd configuration file \"$CONF_FILE\"."
+    if [ ! -e $PWD/syncd/$CONF_FILE.conf ]; then
+      if [ ! -e $PWD/$CONF_FILE.conf ]; then
+         if [ ! -e $CONF_FILE.conf ]; then    #absolute path??
+              echo "ERROR - Unable to find syncd configuration file $CONF_FILE.conf in standard locations"
         exit 1
-      fi
-      CONF_PATH=$PWD/$CONF_FILE.conf
-    else
-      CONF_PATH=$PWD/syncd/$CONF_FILE.conf
+        else
+          CONF_PATH=$CONF_FILE.conf  # path absolute
+        fi
+        else
+         CONF_PATH=$PWD/$CONF_FILE.conf # in working directory
+        fi
+      else
+      CONF_PATH=$PWD/syncd/$CONF_FILE.conf # in syncd/  of working directory
     fi
+    # It was in the jobs folder
   fi
-else
-CONF_PATH=$CONF
-fi
+
+# echo configuration path after search $CONF_PATH
 
 # reset filename in case of conf in a subirectory
 CONF_FILE=`basename $CONF_PATH`
-echo confile=$CONF_FILE
-
-# source the config file here
-echo loading config
-echo $CONF_PATH
+#echo confile=$CONF_FILE
 
 # pid files go in the same directory as .conf
 CONF_DIR=`dirname $CONF_PATH`
-mkdir -p $CONF_DIR/LOG
-mkdir -p $CONF_DIR/PID
+mkdir -p $SCRIPT_DIR/jobs/LOG
+mkdir -p $SCRIPT_DIR/jobs/PID
 PIDFILE="$SCRIPT_DIR/jobs/PID/${CONF_FILE%.*}.pid"
 LOGFILE=$SCRIPT_DIR/jobs/LOG/${CONF_FILE%.*}.log
 # echo pidfile = $PIDFILE
-# echo $LOGFILE
+# echo logfile = $LOGFILE
+
+# source the config file here
+echo loading config $CONF_PATH
 
 . $CONF_PATH
 
