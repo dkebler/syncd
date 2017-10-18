@@ -1,0 +1,11 @@
+#!/bin/bash
+CMD=${2:-start}
+FILES=/opt/syncd/jobs/$1/*
+for file in $FILES
+do
+  name=${file##*/}
+  base=${name%.conf}
+  echo "Processing $base file..."
+  syncd  $1/$base $CMD
+done
+exit
