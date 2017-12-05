@@ -1,0 +1,11 @@
+cache/
+thumbnails*
+.[Tt]rash-1000/
+node_modules/
+bower_components/
+.DS_Store
+[Ll]ost+[Ff]ound/
+.[Tt]rash*/
+*RECYCLE.BIN/
+delete*/
+

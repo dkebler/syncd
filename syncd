@@ -2,20 +2,25 @@
 #------------------------------------------------------------
 # initd script for running services without start-stop-daemon
 # (c) Wolfgang Ziegler, nuppla@zites.net, drunomics GmbH
+#  This forked version by David Kebler d@kebler.net, 2017
 #------------------------------------------------------------
 
-# Find config file
+CMD="$2"
 
-CONF_FILE=syncd.conf
+# if one of these then must be no conf passed to make it syncd.conf
+if [ ! $1 ]; then
+echo error! no command given
+exit 1
+fi
+if [[ "$1" =~ ^(start|stop|restart|status|run|log)$ ]]; then
+  CONF_FILE="syncd"
+  CMD="$1"
+else
+  CONF_FILE="$1"
+fi
 
-while [ ! -e $CONF_FILE ]; do
-  if [ $PWD = "/" ]; then
-    echo "Unable to find syncd configuration file \"$CONF_FILE\"."
-    exit 1
-  else
-    cd ..
-  fi
-done
+# echo conf file: $CONF_FILE.conf  command: $CMD
+
 
 SYNCD_CONFIG_DIR=$PWD
 SCRIPT=`readlink -f $0`
@@ -23,68 +28,125 @@ DAEMON_NAME=syncd
 LINK=`readlink -f $0`
 SCRIPT_DIR=`dirname $LINK`
 
-. $CONF_FILE
 
-# COMMAND="rsync $RSYNC_OPTIONS --exclude=$RSYNC_EXCLUDE --delete $WATCH_DIR/ $SSH_USER@$SSH_HOST:$REMOTE_TARGET_DIR"
-COMMAND="rsync $RSYNC_OPTIONS $RSYNC_EXCLUDE $WATCH_DIR/ $REMOTE_TARGET_DIR"
+CONF_PATH=$SCRIPT_DIR/jobs/$CONF_FILE.conf
 
-
-case $1 in
-    start)
-      if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
-        echo "$DAEMON_NAME is already running."
-        exit 1;
-      fi
-      export WATCH_EXCLUDE
-      export WATCH_VERBOSE
-      export WATCH_DIR
-      $SCRIPT_DIR/watch.sh $COMMAND >> $LOGFILE &
-      echo "$!" > $PIDFILE
-      echo "Starting $DAEMON_NAME..."
-    ;;
-
-    stop)
-      if [ ! -e ${PIDFILE} ] || ( ! ps -p `cat $PIDFILE` > /dev/null ); then
-        echo "$DAEMON_NAME is not running."
-        exit 1;
-      fi
-
-      echo "Stopping $DAEMON_NAME..."
-      PID=`cat $PIDFILE`
-      CHILD_PIDS=$(pgrep -P $PID);
-      kill $PID 2> /dev/null || echo Killing process failed, not running?
-      # Wait half a second and Kill child PIDs to be sure they are gone.
-      sleep 0.5
-      kill $CHILD_PIDS 2> /dev/null
-      rm $PIDFILE
-    ;;
-    restart)
-      $SCRIPT stop
-      $SCRIPT start
-    ;;
-
-    status)
-      if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
-          echo "$DAEMON_NAME is running."
+#echo "conf_path before search $CONF_PATH"
+#echo "current directory $PWD"
+# look in 1. jobs directory (or subdirectory) of syncd folder, 3. pwd/syncd folder or 4. pwd
+  if [ ! -e $CONF_PATH ]; then
+    if [ ! -e $PWD/syncd/$CONF_FILE.conf ]; then
+      if [ ! -e $PWD/$CONF_FILE.conf ]; then
+         if [ ! -e $CONF_FILE.conf ]; then    #absolute path??
+              echo "ERROR - Unable to find syncd configuration file $CONF_FILE.conf in standard locations"
+        exit 1
+        else
+          CONF_PATH=$CONF_FILE.conf  # path absolute
+        fi
+        else
+         CONF_PATH=$PWD/$CONF_FILE.conf # in working directory
+        fi
       else
-          echo "$DAEMON_NAME is not running."
-      fi
-    ;;
+      CONF_PATH=$PWD/syncd/$CONF_FILE.conf # in syncd/  of working directory
+    fi
+    # It was in the jobs folder
+  fi
 
-    run)
-      echo $COMMAND
-	read -p "Ok to run this command? [yn]" ans
-	if [ $ans = y ] ; then
-	      $COMMAND && echo Done
-	fi
-    ;;
+# echo configuration path after search $CONF_PATH
 
-    log)
-      tail -f $LOGFILE
-    ;;
+# reset filename in case of conf in a subirectory
+CONF_FILE=`basename $CONF_PATH`
+#echo confile=$CONF_FILE
 
-    *)
-      echo "Usage: $0 {start|stop|restart|status|run|log}"
-      exit 3
-    ;;
+# pid files go in the same directory as .conf
+CONF_DIR=`dirname $CONF_PATH`
+mkdir -p $SCRIPT_DIR/jobs/LOG
+mkdir -p $SCRIPT_DIR/jobs/PID
+PIDFILE="$SCRIPT_DIR/jobs/PID/${CONF_FILE%.*}.pid"
+LOGFILE=$SCRIPT_DIR/jobs/LOG/${CONF_FILE%.*}.log
+# echo pidfile = $PIDFILE
+# echo logfile = $LOGFILE
+
+# source the config file here
+echo loading config $CONF_PATH
+
+. $CONF_PATH
+
+if [ -z "$WATCH_DIR" ]; then WATCH_DIR=$(dirname `dirname $CONF_PATH`);fi
+
+if [ -z "$SSH_HOST" ]; then TARGET=$TARGET_DIR; else TARGET=$SSH_USER@$SSH_HOST:$TARGET_DIR; fi
+
+# echo including/excluding: $RSYNC_EXCLUDE
+# RSYNC_EXCLUDE in conf file be sure to add --exclude fileordir  for each one, can be multiple
+COMMAND="rsync $RSYNC_OPTIONS $RSYNC_EXCLUDE $WATCH_DIR/ $TARGET"
+# echo $COMMAND
+
+# uncomment for debugging
+# exit 1
+
+case $CMD in
+  start)
+    if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
+      echo "$DAEMON_NAME is already running."
+      exit 1;
+    fi
+    export WATCH_EXCLUDE
+    export WATCH_VERBOSE
+    export WATCH_DIR
+
+    # TODO add a process name based on config file name so it can be found later
+    # http://stackoverflow.com/questions/11130229/start-a-process-with-a-name
+
+    $SCRIPT_DIR/watch.sh $COMMAND >> $LOGFILE &
+    echo "$!" > $PIDFILE
+    echo SYNCD $CONF_FILE
+    echo watching and syncing $WATCH_DIR to $TARGET
+  ;;
+
+  stop)
+    if [ ! -e ${PIDFILE} ] || ( ! ps -p `cat $PIDFILE` > /dev/null ); then
+      echo "$DAEMON_NAME $CONF_FILE is not running."
+      exit 1;
+    fi
+
+    echo "Stopping $DAEMON_NAME...$CONF_FILE"
+    PID=`cat $PIDFILE`
+    CHILD_PIDS=$(pgrep -P $PID);
+    kill $PID 2> /dev/null || echo Killing process failed, not running?
+    # Wait half a second and Kill child PIDs to be sure they are gone.
+    sleep 0.5
+    kill $CHILD_PIDS 2> /dev/null
+    rm $PIDFILE
+  ;;
+  #  TODO need to recode so this actually works
+  restart)
+    $SCRIPT $1 stop
+    $SCRIPT $1 start
+  ;;
+
+  status)
+    if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
+      echo SYNCD $CONF_FILE
+      echo watching and syncing $WATCH_DIR to $TARGET
+    else
+      echo "$DAEMON_NAME for $CONF_FILE is not running."
+    fi
+  ;;
+
+  run)
+    echo $COMMAND
+    read -p "Ok to run this command? [yn]" ans
+    if [ $ans = y ] ; then
+      $COMMAND && echo Done
+    fi
+  ;;
+
+  log)
+    tail -f $LOGFILE
+  ;;
+
+  *)
+    echo "Usage: $0 {start|stop|restart|status|run|log}"
+    exit 3
+  ;;
 esac

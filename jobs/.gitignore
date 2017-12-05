@@ -1,0 +1,7 @@
+*.log
+*.pid
+/LOG/
+/PID/
+/mcp/
+/switches/
+/alldata.conf
