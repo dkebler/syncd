@@ -9,7 +9,8 @@ lost+found/*
 /var/tmp/*
 /var/backups/*
 Private
-cache/
+.[Cc]ache/
+[Cc]ache/
 thumbnails*
 .backup*
 *~
@@ -27,4 +28,4 @@ bower_components/
 [Ll]ost+[Ff]ound/
 .[Tt]rash*/
 *RECYCLE.BIN/
-
+tmp/*

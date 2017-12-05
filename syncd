@@ -27,17 +27,20 @@ SCRIPT=`readlink -f $0`
 DAEMON_NAME=syncd
 LINK=`readlink -f $0`
 SCRIPT_DIR=`dirname $LINK`
+# by default will look in job sudirectory where syncd is located
+JOBS_DIR="$SCRIPT_DIR/jobs"
+# otherwise you can comment above and uncomment below and provide an absolution path to your jobs directory
+#JOBS_DIR="your/fav/abs/path"
 
-
-CONF_PATH=$SCRIPT_DIR/jobs/$CONF_FILE.conf
+CONF_PATH=$JOBS_DIR/$CONF_FILE.conf
 
 #echo "conf_path before search $CONF_PATH"
 #echo "current directory $PWD"
-# look in 1. jobs directory (or subdirectory) of syncd folder, 3. pwd/syncd folder or 4. pwd
+# look in 1. jobs directory or (or subdirectory there of), 2 In a syncd sub folder or your pwd, 3. pwd 4. Some absolute path
   if [ ! -e $CONF_PATH ]; then
     if [ ! -e $PWD/syncd/$CONF_FILE.conf ]; then
       if [ ! -e $PWD/$CONF_FILE.conf ]; then
-         if [ ! -e $CONF_FILE.conf ]; then    #absolute path??
+         if [ ! -e $CONF_FILE.conf ]; then    #absolute path
               echo "ERROR - Unable to find syncd configuration file $CONF_FILE.conf in standard locations"
         exit 1
         else
@@ -62,14 +65,15 @@ CONF_FILE=`basename $CONF_PATH`
 CONF_DIR=`dirname $CONF_PATH`
 mkdir -p $SCRIPT_DIR/jobs/LOG
 mkdir -p $SCRIPT_DIR/jobs/PID
-PIDFILE="$SCRIPT_DIR/jobs/PID/${CONF_FILE%.*}.pid"
-LOGFILE=$SCRIPT_DIR/jobs/LOG/${CONF_FILE%.*}.log
+PIDFILE="$JOBS_DIR/PID/${CONF_FILE%.*}.pid"
+LOGFILE=$JOBS_DIR/LOG/${CONF_FILE%.*}.log
 # echo pidfile = $PIDFILE
 # echo logfile = $LOGFILE
 
 # source the config file here
 echo loading config $CONF_PATH
 
+set -- $SCRIPT_DIR ;
 . $CONF_PATH
 
 if [ -z "$WATCH_DIR" ]; then WATCH_DIR=$(dirname `dirname $CONF_PATH`);fi

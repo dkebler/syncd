@@ -1,6 +1,13 @@
 #!/bin/bash
 CMD=${2:-start}
-FILES=/opt/syncd/jobs/$1/*
+
+SCRIPT_DIR=`dirname $LINK`
+# by default will look in job sudirectory where syncd is located
+JOBS_DIR=`$SCRIPT_DIR/jobs`
+# otherwise you can comment above and uncomment below and provide an absolution path to your jobs directory
+#JOBS_DIR="your/fav/abs/path"
+
+FILES=$JOBS_DIR/$1/*
 for file in $FILES
 do
   name=${file##*/}

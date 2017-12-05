@@ -4,4 +4,8 @@
 /PID/
 /mcp/
 /switches/
+/light/
+/lightMaster/
+/@uci/
 /alldata.conf
+/test.conf
