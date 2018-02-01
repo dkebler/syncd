@@ -1,18 +1,25 @@
 #!/bin/bash
 CMD=${2:-start}
 
-SCRIPT_DIR=`dirname $LINK`
-# by default will look in job sudirectory where syncd is located
-JOBS_DIR=`$SCRIPT_DIR/jobs`
-# otherwise you can comment above and uncomment below and provide an absolution path to your jobs directory
-#JOBS_DIR="your/fav/abs/path"
+if [ ${1:0:1} = / ]; then DIR=$1;
+else
+# if not absolute path then look in jobs sudirectory where syncd is located
+SYNCD_DIR=`dirname $(readlink -f $0)`
+DIR=$SYNCD_DIR/jobs/$1
+fi
 
-FILES=$JOBS_DIR/$1/*
-for file in $FILES
+echo $DIR
+# only looks for conf files does not recurse subdirectories
+GLOB=$DIR/*.conf
+echo $GLOB
+if find $GLOB -quit &> /dev/null; then
+for file in $GLOB
 do
   name=${file##*/}
-  base=${name%.conf}
-  echo "Processing $base file..."
-  syncd  $1/$base $CMD
+  conf=${name%.conf}
+  echo "Processing configuration file $conf"
+  syncd  $DIR/$conf $CMD
 done
+else echo 'No configuration files found in' $DIR
+fi
 exit
