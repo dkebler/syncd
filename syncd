@@ -19,8 +19,10 @@ else
   CONF_FILE="$1"
 fi
 
-# echo conf file: $CONF_FILE.conf  command: $CMD
+SSH_HOST="$3"
+SSH_USER="$4"
 
+# echo conf file: $CONF_FILE.conf  command: $CMD
 
 SYNCD_CONFIG_DIR=$PWD
 SCRIPT=`readlink -f $0`
@@ -71,7 +73,8 @@ LOGFILE=$JOBS_DIR/LOG/${CONF_FILE%.*}.log
 # echo logfile = $LOGFILE
 
 # source the config file here
-echo loading config $CONF_PATH
+echo ======= cmd:$CMD to  remote user@host $SSH_USER@$SSH_HOST --none if local ======
+echo for config file $CONF_PATH
 
 set -- $SCRIPT_DIR ;
 . $CONF_PATH
@@ -87,6 +90,8 @@ COMMAND="rsync $RSYNC_OPTIONS $RSYNC_EXCLUDE $WATCH_DIR/ $TARGET"
 
 # uncomment for debugging
 # exit 1
+
+
 
 case $CMD in
   start)
@@ -104,7 +109,7 @@ case $CMD in
     $SCRIPT_DIR/watch.sh $COMMAND >> $LOGFILE &
     echo "$!" > $PIDFILE
     echo SYNCD $CONF_FILE
-    echo watching and syncing $WATCH_DIR to $TARGET
+    echo watching and syncing $WATCH_DIR to $TARGET at $SSH_HOST
   ;;
 
   stop)
@@ -131,7 +136,7 @@ case $CMD in
   status)
     if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
       echo SYNCD $CONF_FILE
-      echo watching and syncing $WATCH_DIR to $TARGET
+      echo STATUS: watching and syncing $WATCH_DIR to $TARGET
     else
       echo "$DAEMON_NAME for $CONF_FILE is not running."
     fi
@@ -154,3 +159,4 @@ case $CMD in
     exit 3
   ;;
 esac
+echo ====================== end cmd:$CMD  =====================

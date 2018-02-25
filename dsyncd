@@ -1,6 +1,9 @@
 #!/bin/bash
 CMD=${2:-start}
 
+SSH_HOST=$3
+SSH_USER=$4
+
 if [ ${1:0:1} = / ]; then DIR=$1;
 else
 # if not absolute path then look in jobs sudirectory where syncd is located
@@ -17,8 +20,8 @@ for file in $GLOB
 do
   name=${file##*/}
   conf=${name%.conf}
-  echo "Processing configuration file $conf"
-  syncd  $DIR/$conf $CMD
+  echo "Running syncd for configuration file $conf"
+  syncd  $DIR/$conf $CMD  $SSH_HOST $SSH_USER
 done
 else echo 'No configuration files found in' $DIR
 fi
