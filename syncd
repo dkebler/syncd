@@ -92,7 +92,7 @@ COMMAND="rsync $RSYNC_OPTIONS $RSYNC_EXCLUDE $WATCH_DIR/ $TARGET"
 # exit 1
 
 
-
+#command#
 case $CMD in
   start)
     if [ -e ${PIDFILE} ] && ( ps -p `cat $PIDFILE` > /dev/null ); then
@@ -127,10 +127,10 @@ case $CMD in
     kill $CHILD_PIDS 2> /dev/null
     rm $PIDFILE
   ;;
-  #  TODO need to recode so this actually works
   restart)
-    $SCRIPT $1 stop
-    $SCRIPT $1 start
+  #echo RESTART COMMAND  $SCRIPT ${CONF_FILE%.*}
+  $SCRIPT ${CONF_FILE%.*} stop
+  $SCRIPT ${CONF_FILE%.*} start
   ;;
 
   status)
