@@ -29,3 +29,4 @@ bower_components/
 .[Tt]rash*/
 *RECYCLE.BIN/
 tmp/*
+build/

@@ -1,13 +1,17 @@
 #!/bin/bash
 #------------------------------------------------------------
-# initd script for running services without start-stop-daemon
+# Forked version by David Kebler d@kebler.net, 2017
 # (c) Wolfgang Ziegler, nuppla@zites.net, drunomics GmbH
-#  This forked version by David Kebler d@kebler.net, 2017
 #------------------------------------------------------------
+# BASH_MODULES="${BASH_MODULES:-/opt/bash/modules}"
+# . $BASH_MODULES/load-modules.sh
+# MODULES=(logit bind-mount)
+# load-modules $MODULES
+
+# USAGE: syncd {job name} commmand
 
 CMD="$2"
 
-# if one of these then must be no conf passed to make it syncd.conf
 if [ ! $1 ]; then
 echo error! no command given
 exit 1
@@ -29,13 +33,9 @@ SCRIPT=`readlink -f $0`
 DAEMON_NAME=syncd
 LINK=`readlink -f $0`
 SCRIPT_DIR=`dirname $LINK`
-# by default will look in job sudirectory where syncd is located
-JOBS_DIR="$SCRIPT_DIR/jobs"
-# otherwise you can comment above and uncomment below and provide an absolution path to your jobs directory
-#JOBS_DIR="your/fav/abs/path"
-
+# SET SYNCD_JOBS_DIR in environment or by default will look in job sudirectory where syncd is located
+JOBS_DIR="${SYNCD_JOBS_DIR:-$SCRIPT_DIR/jobs}"
 CONF_PATH=$JOBS_DIR/$CONF_FILE.conf
-
 #echo "conf_path before search $CONF_PATH"
 #echo "current directory $PWD"
 # look in 1. jobs directory or (or subdirectory there of), 2 In a syncd sub folder or your pwd, 3. pwd 4. Some absolute path
@@ -65,27 +65,33 @@ CONF_FILE=`basename $CONF_PATH`
 
 # pid files go in the same directory as .conf
 CONF_DIR=`dirname $CONF_PATH`
-mkdir -p $SCRIPT_DIR/jobs/LOG
-mkdir -p $SCRIPT_DIR/jobs/PID
+mkdir -p $JOBS_DIR/LOG
+mkdir -p $JOBS_DIR/PID
 PIDFILE="$JOBS_DIR/PID/${CONF_FILE%.*}.pid"
 LOGFILE=$JOBS_DIR/LOG/${CONF_FILE%.*}.log
 # echo pidfile = $PIDFILE
 # echo logfile = $LOGFILE
 
 # source the config file here
-echo ======= cmd:$CMD to  remote user@host $SSH_USER@$SSH_HOST --none if local ======
-echo for config file $CONF_PATH
 
 set -- $SCRIPT_DIR ;
 . $CONF_PATH
+
+# echo === cmd:$CMD
+# echo === remote host $SSH_USER@$SSH_HOST ======
+echo for config file $CONF_PATH
 
 if [ -z "$WATCH_DIR" ]; then WATCH_DIR=$(dirname `dirname $CONF_PATH`);fi
 
 if [ -z "$SSH_HOST" ]; then TARGET=$TARGET_DIR; else TARGET=$SSH_USER@$SSH_HOST:$TARGET_DIR; fi
 
+if [ ! -z "$SSH_KEY" ]; then SSH_KEY="-e 'ssh -i $SSH_KEY'"; fi
+
+# echo sshkey $SSH_KEY
+
 # echo including/excluding: $RSYNC_EXCLUDE
 # RSYNC_EXCLUDE in conf file be sure to add --exclude fileordir  for each one, can be multiple
-COMMAND="rsync $RSYNC_OPTIONS $RSYNC_EXCLUDE $WATCH_DIR/ $TARGET"
+COMMAND="rsync $RSYNC_OPTIONS $RSYNC_EXCLUDE $SSH_KEY $WATCH_DIR/ $TARGET"
 # echo $COMMAND
 
 # uncomment for debugging

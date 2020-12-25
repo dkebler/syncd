@@ -1,4 +1,5 @@
 #!/bin/bash
+# will run a whole directory of syncd jobs
 CMD=${2:-start}
 
 SSH_HOST=$3
